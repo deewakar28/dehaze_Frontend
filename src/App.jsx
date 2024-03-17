@@ -21,7 +21,7 @@ const App = () => {
                         const imageData = canvas.toDataURL('image/jpeg');
 
                         // Send the frame to the server for dehazing
-                        fetch('http://127.0.0.1:5000/process_frame', {
+                        fetch('http://127.0.0.1:5000/api/process_frame', {
                             method: 'POST',
                             body: JSON.stringify({ image_data: imageData }),
                             headers: {
