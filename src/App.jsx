@@ -1,57 +1,63 @@
-import { useState } from 'react'
+import React, { useEffect } from 'react';
 
-function App() {
+const App = () => {
+    useEffect(() => {
+        const accessCamera = async () => {
+            try {
+                const video = document.getElementById('original-video');
+                const dehazedImage = document.getElementById('dehazed-image');
 
-  let video = document.getElementById('original-video');
-  let dehazedImage = document.getElementById('dehazed-image');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
 
-  navigator.mediaDevices.getUserMedia({ video: true })
-  .then(function (stream) {
-      video.srcObject = stream;
+                video.addEventListener('play', () => {
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = 640;
+                    canvas.height = 480;
 
-      video.addEventListener('play', function () {
-          let canvas = document.createElement('canvas');
-          let context = canvas.getContext('2d');
-          canvas.width = 640;
-          canvas.height = 480;
+                    setInterval(() => {
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const imageData = canvas.toDataURL('image/jpeg');
 
-          setInterval(function () {
-              context.drawImage(video, 0, 0, canvas.width, canvas.height);
-              let imageData = canvas.toDataURL('image/jpeg');
+                        // Send the frame to the server for dehazing
+                        fetch('http://127.0.0.1:5000/process_frame', {
+                            method: 'POST',
+                            body: JSON.stringify({ image_data: imageData }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            // Display dehazed frame
+                            dehazedImage.src = 'data:image/jpeg;base64,' + data.dehazed_image;
+                        });
+                    }, 1000 / 30);
+                });
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        };
 
-              fetch('/process_frame', {
-                  method: 'POST',
-                  body: JSON.stringify({ image_data: imageData }),
-                  headers: {
-                      'Content-Type': 'application/json'
-                  }
-              })
-              .then(response => response.json())
-              .then(data => {
-                  dehazedImage.src = 'data:image/jpeg;base64,' + data.dehazed_image;
-              });
-          }, 1000 / 30);
-      });
-  })
-  .catch(function (error) {
-      console.error('Error accessing camera:', error);
-  });
+        accessCamera();
+    }, []);
 
-  return (
-    <>
-      <h1>Real-time Dehazing Platform</h1>
-    <div id="video-container">
-        <div id="original-frame">
-            <h3>Original Frame</h3>
-            <video id="original-video" autoplay playsinline width="640" height="480"></video>
+    return (
+        <div>
+            <h1>Real-time Dehazing Platform</h1>
+            <div id="video-container">
+                <div id="original-frame">
+                    <h3>Original Frame</h3>
+                    <video id="original-video" autoPlay playsInline width="640" height="480"></video>
+                </div>
+                <div id="dehazed-frame">
+                    <h3>Dehazed Frame</h3>
+                    <img id="dehazed-image" src="" alt="Dehazed Image" width="640" height="480" />
+                </div>
+            </div>
         </div>
-        <div id="dehazed-frame">
-            <h3>Dehazed Frame</h3>
-            <img id="dehazed-image" src="" width="640" height="480"/>
-        </div>
-    </div>
-    </>
-  )
-}
+    );
+};
 
-export default App
+export default App;
